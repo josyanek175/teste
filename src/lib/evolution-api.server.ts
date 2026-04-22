@@ -1,4 +1,4 @@
-// Evolution API helpers (VERSÃO FINAL - usando backend Node)
+// Evolution API helpers (VERSÃO CORRIGIDA FINAL)
 
 export interface EvolutionInstance {
   id?: string;
@@ -42,7 +42,7 @@ const BASE_URL = "https://pajamas-grapple-crook.ngrok-free.dev";
 // ─────────────────────────────
 
 export async function fetchInstances(): Promise<EvolutionInstance[]> {
-  const res = await fetch(`${BASE_URL}/api/instances`);
+  const res = await fetch(`${BASE_URL}/instance/fetchInstances`);
 
   if (!res.ok) {
     throw new Error("Erro ao buscar instâncias");
@@ -52,14 +52,16 @@ export async function fetchInstances(): Promise<EvolutionInstance[]> {
 }
 
 export async function createInstance(instanceName: string, number?: string) {
-  const res = await fetch(`${BASE_URL}/api/instance`, {
+  const res = await fetch(`${BASE_URL}/instance/create`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      name: instanceName,
+      instanceName,
       number,
+      integration: "WHATSAPP-BAILEYS",
+      qrcode: true,
     }),
   });
 
@@ -71,7 +73,7 @@ export async function createInstance(instanceName: string, number?: string) {
 }
 
 export async function deleteInstance(instanceName: string) {
-  const res = await fetch(`${BASE_URL}/api/instance/${instanceName}`, {
+  const res = await fetch(`${BASE_URL}/instance/delete/${instanceName}`, {
     method: "DELETE",
   });
 
@@ -87,7 +89,7 @@ export async function deleteInstance(instanceName: string) {
 // ─────────────────────────────
 
 export async function getConnectionState(instanceName: string): Promise<EvolutionConnectionState> {
-  const res = await fetch(`${BASE_URL}/api/status/${instanceName}`);
+  const res = await fetch(`${BASE_URL}/instance/connectionState/${instanceName}`);
 
   if (!res.ok) {
     throw new Error("Erro ao buscar status");
@@ -97,7 +99,7 @@ export async function getConnectionState(instanceName: string): Promise<Evolutio
 }
 
 export async function connectInstance(instanceName: string): Promise<EvolutionQrCode> {
-  const res = await fetch(`${BASE_URL}/api/connect/${instanceName}`);
+  const res = await fetch(`${BASE_URL}/instance/connect/${instanceName}`);
 
   if (!res.ok) {
     throw new Error("Erro ao conectar instância");
@@ -109,7 +111,12 @@ export async function connectInstance(instanceName: string): Promise<EvolutionQr
 export async function reconnectInstance(instanceName: string) {
   console.log("🔄 Reconnecting:", instanceName);
 
-  const res = await fetch(`${BASE_URL}/api/connect/${instanceName}`);
+  // logout + reconnect
+  await fetch(`${BASE_URL}/instance/logout/${instanceName}`, {
+    method: "DELETE",
+  }).catch(() => {});
+
+  const res = await fetch(`${BASE_URL}/instance/connect/${instanceName}`);
 
   if (!res.ok) {
     throw new Error("Erro ao reconectar");
@@ -127,13 +134,12 @@ export async function sendTextMessage(
   remoteJid: string,
   text: string
 ) {
-  const res = await fetch(`${BASE_URL}/api/send`, {
+  const res = await fetch(`${BASE_URL}/message/sendText/${instanceName}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      instance: instanceName,
       number: remoteJid,
       text,
     }),
@@ -151,14 +157,20 @@ export async function sendTextMessage(
 // ─────────────────────────────
 
 export async function setWebhook(instanceName: string, webhookUrl: string) {
-  const res = await fetch(`${BASE_URL}/api/webhook`, {
+  const res = await fetch(`${BASE_URL}/webhook/set/${instanceName}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      instance: instanceName,
+      enabled: true,
       url: webhookUrl,
+      events: [
+        "MESSAGES_UPSERT",
+        "MESSAGES_UPDATE",
+        "CONNECTION_UPDATE",
+        "QRCODE_UPDATED",
+      ],
     }),
   });
 
